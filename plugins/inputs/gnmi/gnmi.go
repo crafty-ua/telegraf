@@ -12,7 +12,6 @@ import (
 	"math"
 	"net"
 	"path"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -233,11 +232,13 @@ func (c *GNMI) newSubscribeRequest() (*gnmiLib.SubscribeRequest, error) {
 // SubscribeGNMI and extract telemetry data
 func (c *GNMI) subscribeGNMI(ctx context.Context, address string, tlscfg *tls.Config, request *gnmiLib.SubscribeRequest) error {
 	var opt grpc.DialOption
+    var creds credentials.TransportCredentials
 	if tlscfg != nil {
-		opt = grpc.WithTransportCredentials(credentials.NewTLS(tlscfg))
+        creds = credentials.NewTLS(tlscfg)
 	} else {
-		opt = grpc.WithInsecure()
+        creds = insecure.NewCredentials()
 	}
+    opt := grpc.WithTransportCredentials(creds)
 
 	client, err := grpc.DialContext(ctx, address, opt)
 	if err != nil {
