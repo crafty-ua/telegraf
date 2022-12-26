@@ -1,7 +1,10 @@
+//go:generate ../../../tools/readme_config_includer/generator
 package http
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,10 +13,14 @@ import (
 	"sync"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/internal"
 	httpconfig "github.com/influxdata/telegraf/plugins/common/http"
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
+
+//go:embed sample.conf
+var sampleConfig string
 
 type HTTP struct {
 	URLs            []string `toml:"urls"`
@@ -24,8 +31,8 @@ type HTTP struct {
 	Headers map[string]string `toml:"headers"`
 
 	// HTTP Basic Auth Credentials
-	Username string `toml:"username"`
-	Password string `toml:"password"`
+	Username config.Secret `toml:"username"`
+	Password config.Secret `toml:"password"`
 
 	// Absolute path to file with Bearer token
 	BearerToken string `toml:"bearer_token"`
@@ -38,6 +45,10 @@ type HTTP struct {
 
 	client     *http.Client
 	parserFunc telegraf.ParserFunc
+}
+
+func (*HTTP) SampleConfig() string {
+	return sampleConfig
 }
 
 func (h *HTTP) Init() error {
@@ -82,11 +93,13 @@ func (h *HTTP) SetParserFunc(fn telegraf.ParserFunc) {
 
 // Gathers data from a particular URL
 // Parameters:
-//     acc    : The telegraf Accumulator to use
-//     url    : endpoint to send request to
+//
+//	acc    : The telegraf Accumulator to use
+//	url    : endpoint to send request to
 //
 // Returns:
-//     error: Any error that may have occurred
+//
+//	error: Any error that may have occurred
 func (h *HTTP) gatherURL(
 	acc telegraf.Accumulator,
 	url string,
@@ -94,9 +107,6 @@ func (h *HTTP) gatherURL(
 	body, err := makeRequestBodyReader(h.ContentEncoding, h.Body)
 	if err != nil {
 		return err
-	}
-	if body != nil {
-		defer body.Close()
 	}
 
 	request, err := http.NewRequest(h.Method, url, body)
@@ -125,8 +135,8 @@ func (h *HTTP) gatherURL(
 		}
 	}
 
-	if h.Username != "" || h.Password != "" {
-		request.SetBasicAuth(h.Username, h.Password)
+	if err := h.setRequestAuth(request); err != nil {
+		return err
 	}
 
 	resp, err := h.client.Do(request)
@@ -175,7 +185,24 @@ func (h *HTTP) gatherURL(
 	return nil
 }
 
-func makeRequestBodyReader(contentEncoding, body string) (io.ReadCloser, error) {
+func (h *HTTP) setRequestAuth(request *http.Request) error {
+	username, err := h.Username.Get()
+	if err != nil {
+		return fmt.Errorf("getting username failed: %v", err)
+	}
+	defer config.ReleaseSecret(username)
+	password, err := h.Password.Get()
+	if err != nil {
+		return fmt.Errorf("getting password failed: %v", err)
+	}
+	defer config.ReleaseSecret(password)
+	if len(username) != 0 || len(password) != 0 {
+		request.SetBasicAuth(string(username), string(password))
+	}
+	return nil
+}
+
+func makeRequestBodyReader(contentEncoding, body string) (io.Reader, error) {
 	if body == "" {
 		return nil, nil
 	}
@@ -186,9 +213,14 @@ func makeRequestBodyReader(contentEncoding, body string) (io.ReadCloser, error) 
 		if err != nil {
 			return nil, err
 		}
-		return rc, nil
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			return nil, err
+		}
+		return bytes.NewReader(data), nil
 	}
-	return io.NopCloser(reader), nil
+
+	return reader, nil
 }
 
 func init() {

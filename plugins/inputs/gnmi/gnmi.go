@@ -1,15 +1,18 @@
+//go:generate ../../../tools/readme_config_includer/generator
 package gnmi
 
 import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"math"
 	"net"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -18,6 +21,7 @@ import (
 	gnmiLib "github.com/openconfig/gnmi/proto/gnmi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 
 	"github.com/influxdata/telegraf"

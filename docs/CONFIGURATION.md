@@ -19,10 +19,26 @@ To generate a file with specific inputs and outputs, you can use the
 --input-filter and --output-filter flags:
 
 ```sh
-telegraf --input-filter cpu:mem:net:swap --output-filter influxdb:kafka config
+telegraf config --input-filter cpu:mem:net:swap --output-filter influxdb:kafka
 ```
 
 [View the full list][flags] of Telegraf commands and flags or by running `telegraf --help`.
+
+### Windows PowerShell v5 Encoding
+
+In PowerShell 5, the default encoding is UTF-16LE and not UTF-8. Telegraf
+expects a valid UTF-8 file. This is not an issue with PowerShell 6 or newer,
+as well as the Command Prompt or with using the Git Bash shell.
+
+As such, users will need to specify the output encoding when generating a full
+configuration file:
+
+```sh
+telegraf.exe config | Out-File -Encoding utf8 telegraf.conf
+```
+
+This will generate a UTF-8 encoded file with a BOM. However, Telegraf can
+handle the leading BOM.
 
 ## Configuration Loading
 
@@ -141,6 +157,45 @@ parsed:
   bucket = "replace_with_your_bucket_name"
 ```
 
+## Secret-store secrets
+
+Additional or instead of environment variables, you can use secret-stores
+to fill in credentials or similar. To do so, you need to configure one or more
+secret-store plugin(s) and then reference the secret in your plugin
+configurations. A reference to a secret is specified in form
+`@{<secret store id>:<secret name>}`, where the `secret store id` is the unique
+ID you defined for your secret-store and `secret name` is the name of the secret
+to use.
+
+**Example**:
+
+This example illustrates the use of secret-store(s) in plugins
+
+```toml
+[global_tags]
+  user = "alice"
+
+[[secretstores.os]]
+  id = "local_secrets"
+
+[[secretstores.jose]]
+  id = "cloud_secrets"
+  path = "/etc/telegraf/secrets"
+  # Optional reference to another secret store to unlock this one.
+  password = "@{local_secrets:cloud_store_passwd}"
+
+[[inputs.http]]
+  urls = ["http://server.company.org/metrics"]
+  username = "@{local_secrets:company_server_http_metric_user}"
+  password = "@{local_secrets:company_server_http_metric_pass}"
+
+[[outputs.influxdb_v2]]
+  urls = ["https://us-west-2-1.aws.cloud2.influxdata.com"]
+  token = "@{cloud_secrets:influxdb_token}"
+  organization = "yourname@yourcompany.com"
+  bucket = "replace_with_your_bucket_name"
+```
+
 ## Intervals
 
 Intervals are durations of time and can be specified for supporting settings by
@@ -247,8 +302,8 @@ The agent table configures Telegraf and the defaults used across all plugins.
   If set to true, do no set the "host" tag in the telegraf agent.
 
 - **snmp_translator**:
-  Method of translating SNMP objects. Can be "netsnmp" which
-  translates by calling external programs snmptranslate and snmptable,
+  Method of translating SNMP objects. Can be "netsnmp" (deprecated) which
+  translates by calling external programs `snmptranslate` and `snmptable`,
   or "gosmi" which translates using the built-in gosmi library.
 
 ## Plugins
@@ -413,8 +468,10 @@ input plugins and before any aggregator plugins.
 Parameters that can be used with any processor plugin:
 
 - **alias**: Name an instance of a plugin.
-- **order**: The order in which the processor(s) are executed. If this is not
-  specified then processor execution order will be random.
+- **order**: The order in which the processor(s) are executed. starting with 1.
+  If this is not specified then processor execution order will be the order in
+  the config. Processors without "order" will take precedence over those
+  with a defined order.
 
 The [metric filtering][] parameters can be used to limit what metrics are
 handled by the processor.  Excluded metrics are passed downstream to the next
@@ -539,7 +596,7 @@ The inverse of `tagpass`.  If a match is found the metric is discarded. This
 is tested on metrics after they have passed the `tagpass` test.
 
 > NOTE: Due to the way TOML is parsed, `tagpass` and `tagdrop` parameters must be
-defined at the *_end_* of the plugin definition, otherwise subsequent plugin config
+defined at the **end** of the plugin definition, otherwise subsequent plugin config
 options will be interpreted as part of the tagpass/tagdrop tables.
 
 ### Modifiers

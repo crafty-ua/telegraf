@@ -1,6 +1,8 @@
+//go:generate ../../../tools/readme_config_includer/generator
 package http_response
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -16,9 +18,13 @@ import (
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
+
+//go:embed sample.conf
+var sampleConfig string
 
 const (
 	// defaultResponseBodyMaxSize is the default maximum response body size, in bytes.
@@ -193,6 +199,10 @@ func (h *HTTPResponse) httpGather(u string) (map[string]interface{}, map[string]
 		return nil, nil, err
 	}
 
+	if _, uaPresent := h.Headers["User-Agent"]; !uaPresent {
+		request.Header.Set("User-Agent", internal.ProductToken())
+	}
+
 	if h.BearerToken != "" {
 		token, err := os.ReadFile(h.BearerToken)
 		if err != nil {
@@ -316,6 +326,10 @@ func (h *HTTPResponse) setBodyReadError(errorMsg string, bodyBytes []byte, field
 	if h.ResponseStringMatch != "" {
 		fields["response_string_match"] = 0
 	}
+}
+
+func (*HTTPResponse) SampleConfig() string {
+	return sampleConfig
 }
 
 // Gather gets all metric fields and tags and returns any errors it encounters

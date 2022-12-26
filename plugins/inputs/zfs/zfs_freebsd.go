@@ -1,5 +1,4 @@
 //go:build freebsd
-// +build freebsd
 
 package zfs
 
@@ -188,7 +187,7 @@ func zpool() ([]string, error) {
 }
 
 func zdataset(properties []string) ([]string, error) {
-	return run("zfs", []string{"list", "-Hp", "-o", strings.Join(properties, ",")}...)
+	return run("zfs", []string{"list", "-Hp", "-t", "filesystem,volume", "-o", strings.Join(properties, ",")}...)
 }
 
 func sysctl(metric string) ([]string, error) {

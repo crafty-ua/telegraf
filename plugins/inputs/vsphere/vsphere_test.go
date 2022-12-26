@@ -21,23 +21,6 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-var configHeader = `
-[agent]
-  interval = "10s"
-  round_interval = true
-  metric_batch_size = 1000
-  metric_buffer_limit = 10000
-  collection_jitter = "0s"
-  flush_interval = "10s"
-  flush_jitter = "0s"
-  precision = ""
-  debug = false
-  quiet = false
-  logfile = ""
-  hostname = ""
-  omit_hostname = false
-`
-
 func defaultVSphere() *VSphere {
 	return &VSphere{
 		Log: testutil.Logger{},
@@ -137,12 +120,17 @@ func defaultVSphere() *VSphere {
 		DatastoreMetricInclude: []string{
 			"disk.used.*",
 			"disk.provisioned.*"},
-		DatastoreMetricExclude:  nil,
-		DatastoreInclude:        []string{"/**"},
-		DatacenterMetricInclude: nil,
-		DatacenterMetricExclude: nil,
-		DatacenterInclude:       []string{"/**"},
-		ClientConfig:            itls.ClientConfig{InsecureSkipVerify: true},
+		DatastoreMetricExclude: nil,
+		DatastoreInclude:       []string{"/**"},
+		ResourcePoolMetricInclude: []string{
+			"cpu.capacity.*",
+			"mem.capacity.*"},
+		ResourcePoolMetricExclude: nil,
+		ResourcePoolInclude:       []string{"/**"},
+		DatacenterMetricInclude:   nil,
+		DatacenterMetricExclude:   nil,
+		DatacenterInclude:         []string{"/**"},
+		ClientConfig:              itls.ClientConfig{InsecureSkipVerify: true},
 
 		MaxQueryObjects:         256,
 		MaxQueryMetrics:         256,
@@ -176,14 +164,14 @@ func createSim(folders int) (*simulator.Model, *simulator.Server, error) {
 
 func testAlignUniform(t *testing.T, n int) {
 	now := time.Now().Truncate(60 * time.Second)
-	info := make([]types.PerfSampleInfo, n)
-	values := make([]int64, n)
+	info := make([]types.PerfSampleInfo, 0, n)
+	values := make([]int64, 0, n)
 	for i := 0; i < n; i++ {
-		info[i] = types.PerfSampleInfo{
+		info = append(info, types.PerfSampleInfo{
 			Timestamp: now.Add(time.Duration(20*i) * time.Second),
 			Interval:  20,
-		}
-		values[i] = 1
+		})
+		values = append(values, 1)
 	}
 	e := Endpoint{log: testutil.Logger{}}
 	newInfo, newValues := e.alignSamples(info, values, 60*time.Second)
@@ -202,14 +190,14 @@ func TestAlignMetrics(t *testing.T) {
 	// 20s to 60s of 1,2,3,1,2,3... (should average to 2)
 	n := 30
 	now := time.Now().Truncate(60 * time.Second)
-	info := make([]types.PerfSampleInfo, n)
-	values := make([]int64, n)
+	info := make([]types.PerfSampleInfo, 0, n)
+	values := make([]int64, 0, n)
 	for i := 0; i < n; i++ {
-		info[i] = types.PerfSampleInfo{
+		info = append(info, types.PerfSampleInfo{
 			Timestamp: now.Add(time.Duration(20*i) * time.Second),
 			Interval:  20,
-		}
-		values[i] = int64(i%3 + 1)
+		})
+		values = append(values, int64(i%3+1))
 	}
 	e := Endpoint{log: testutil.Logger{}}
 	newInfo, newValues := e.alignSamples(info, values, 60*time.Second)
@@ -327,6 +315,12 @@ func TestFinder(t *testing.T) {
 
 	host = []mo.HostSystem{}
 	err = f.Find(ctx, "HostSystem", "/DC0/host/DC0_C0/DC0_C0_H0", &host)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(host))
+	require.Equal(t, "DC0_C0_H0", host[0].Name)
+
+	var resourcepool = []mo.ResourcePool{}
+	err = f.Find(ctx, "ResourcePool", "/DC0/host/DC0_C0/Resources/DC0_C0_RP0", &resourcepool)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(host))
 	require.Equal(t, "DC0_C0_H0", host[0].Name)

@@ -1,54 +1,65 @@
+//go:generate ../../../tools/readme_config_includer/generator
 package vsphere
 
 import (
 	"context"
+	_ "embed"
 	"sync"
 	"time"
+
+	"github.com/vmware/govmomi/vim25/soap"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/inputs"
-	"github.com/vmware/govmomi/vim25/soap"
 )
+
+//go:embed sample.conf
+var sampleConfig string
 
 // VSphere is the top level type for the vSphere input plugin. It contains all the configuration
 // and a list of connected vSphere endpoints
 type VSphere struct {
-	Vcenters                []string
-	Username                string
-	Password                string
-	DatacenterInstances     bool
-	DatacenterMetricInclude []string
-	DatacenterMetricExclude []string
-	DatacenterInclude       []string
-	DatacenterExclude       []string
-	ClusterInstances        bool
-	ClusterMetricInclude    []string
-	ClusterMetricExclude    []string
-	ClusterInclude          []string
-	ClusterExclude          []string
-	HostInstances           bool
-	HostMetricInclude       []string
-	HostMetricExclude       []string
-	HostInclude             []string
-	HostExclude             []string
-	VMInstances             bool     `toml:"vm_instances"`
-	VMMetricInclude         []string `toml:"vm_metric_include"`
-	VMMetricExclude         []string `toml:"vm_metric_exclude"`
-	VMInclude               []string `toml:"vm_include"`
-	VMExclude               []string `toml:"vm_exclude"`
-	DatastoreInstances      bool
-	DatastoreMetricInclude  []string
-	DatastoreMetricExclude  []string
-	DatastoreInclude        []string
-	DatastoreExclude        []string
-	Separator               string
-	CustomAttributeInclude  []string
-	CustomAttributeExclude  []string
-	UseIntSamples           bool
-	IPAddresses             []string
-	MetricLookback          int
+	Vcenters                  []string
+	Username                  string
+	Password                  string
+	DatacenterInstances       bool
+	DatacenterMetricInclude   []string
+	DatacenterMetricExclude   []string
+	DatacenterInclude         []string
+	DatacenterExclude         []string
+	ClusterInstances          bool
+	ClusterMetricInclude      []string
+	ClusterMetricExclude      []string
+	ClusterInclude            []string
+	ClusterExclude            []string
+	ResourcePoolInstances     bool
+	ResourcePoolMetricInclude []string
+	ResourcePoolMetricExclude []string
+	ResourcePoolInclude       []string
+	ResourcePoolExclude       []string
+	HostInstances             bool
+	HostMetricInclude         []string
+	HostMetricExclude         []string
+	HostInclude               []string
+	HostExclude               []string
+	VMInstances               bool     `toml:"vm_instances"`
+	VMMetricInclude           []string `toml:"vm_metric_include"`
+	VMMetricExclude           []string `toml:"vm_metric_exclude"`
+	VMInclude                 []string `toml:"vm_include"`
+	VMExclude                 []string `toml:"vm_exclude"`
+	DatastoreInstances        bool
+	DatastoreMetricInclude    []string
+	DatastoreMetricExclude    []string
+	DatastoreInclude          []string
+	DatastoreExclude          []string
+	Separator                 string
+	CustomAttributeInclude    []string
+	CustomAttributeExclude    []string
+	UseIntSamples             bool
+	IPAddresses               []string
+	MetricLookback            int
 
 	MaxQueryObjects         int
 	MaxQueryMetrics         int
@@ -68,6 +79,10 @@ type VSphere struct {
 	Log telegraf.Logger
 }
 
+func (*VSphere) SampleConfig() string {
+	return sampleConfig
+}
+
 // Start is called from telegraf core when a plugin is started and allows it to
 // perform initialization tasks.
 func (v *VSphere) Start(_ telegraf.Accumulator) error {
@@ -76,8 +91,8 @@ func (v *VSphere) Start(_ telegraf.Accumulator) error {
 	v.cancel = cancel
 
 	// Create endpoints, one for each vCenter we're monitoring
-	v.endpoints = make([]*Endpoint, len(v.Vcenters))
-	for i, rawURL := range v.Vcenters {
+	v.endpoints = make([]*Endpoint, 0, len(v.Vcenters))
+	for _, rawURL := range v.Vcenters {
 		u, err := soap.ParseURL(rawURL)
 		if err != nil {
 			return err
@@ -86,7 +101,7 @@ func (v *VSphere) Start(_ telegraf.Accumulator) error {
 		if err != nil {
 			return err
 		}
-		v.endpoints[i] = ep
+		v.endpoints = append(v.endpoints, ep)
 	}
 	return nil
 }
@@ -140,31 +155,35 @@ func init() {
 		return &VSphere{
 			Vcenters: []string{},
 
-			DatacenterInstances:     false,
-			DatacenterMetricInclude: nil,
-			DatacenterMetricExclude: nil,
-			DatacenterInclude:       []string{"/*"},
-			ClusterInstances:        false,
-			ClusterMetricInclude:    nil,
-			ClusterMetricExclude:    nil,
-			ClusterInclude:          []string{"/*/host/**"},
-			HostInstances:           true,
-			HostMetricInclude:       nil,
-			HostMetricExclude:       nil,
-			HostInclude:             []string{"/*/host/**"},
-			VMInstances:             true,
-			VMMetricInclude:         nil,
-			VMMetricExclude:         nil,
-			VMInclude:               []string{"/*/vm/**"},
-			DatastoreInstances:      false,
-			DatastoreMetricInclude:  nil,
-			DatastoreMetricExclude:  nil,
-			DatastoreInclude:        []string{"/*/datastore/**"},
-			Separator:               "_",
-			CustomAttributeInclude:  []string{},
-			CustomAttributeExclude:  []string{"*"},
-			UseIntSamples:           true,
-			IPAddresses:             []string{},
+			DatacenterInstances:       false,
+			DatacenterMetricInclude:   nil,
+			DatacenterMetricExclude:   nil,
+			DatacenterInclude:         []string{"/*"},
+			ClusterInstances:          false,
+			ClusterMetricInclude:      nil,
+			ClusterMetricExclude:      nil,
+			ClusterInclude:            []string{"/*/host/**"},
+			HostInstances:             true,
+			HostMetricInclude:         nil,
+			HostMetricExclude:         nil,
+			HostInclude:               []string{"/*/host/**"},
+			ResourcePoolInstances:     false,
+			ResourcePoolMetricInclude: nil,
+			ResourcePoolMetricExclude: nil,
+			ResourcePoolInclude:       []string{"/*/host/**"},
+			VMInstances:               true,
+			VMMetricInclude:           nil,
+			VMMetricExclude:           nil,
+			VMInclude:                 []string{"/*/vm/**"},
+			DatastoreInstances:        false,
+			DatastoreMetricInclude:    nil,
+			DatastoreMetricExclude:    nil,
+			DatastoreInclude:          []string{"/*/datastore/**"},
+			Separator:                 "_",
+			CustomAttributeInclude:    []string{},
+			CustomAttributeExclude:    []string{"*"},
+			UseIntSamples:             true,
+			IPAddresses:               []string{},
 
 			MaxQueryObjects:         256,
 			MaxQueryMetrics:         256,

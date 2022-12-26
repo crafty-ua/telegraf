@@ -1,4 +1,4 @@
-# CSV
+# CSV Parser Plugin
 
 The `csv` parser creates metrics from a document containing comma separated
 values.
@@ -59,6 +59,10 @@ values.
 
   ## The separator between csv fields
   ## By default, the parser assumes a comma (",")
+  ## Please note that if you use invalid delimiters (e.g. "\u0000"), commas
+  ## will be changed to "\ufffd", the invalid delimiters changed to a comma
+  ## during parsing, and afterwards the invalid characters and commas are
+  ## returned to their original values.
   csv_delimiter = ","
 
   ## The character reserved for marking a row as a comment row
@@ -72,6 +76,9 @@ values.
   ## Columns listed here will be added as tags. Any other columns
   ## will be added as fields.
   csv_tag_columns = []
+
+  ## Set to true to let the column tags overwrite the metadata and default tags.
+  csv_tag_overwrite = false
 
   ## The column to extract the name of the metric from. Will not be
   ## included as field in metric.
@@ -98,6 +105,14 @@ values.
   ## If set to true, the parser will skip csv lines that cannot be parsed.
   ## By default, this is false
   csv_skip_errors = false
+
+  ## Reset the parser on given conditions.
+  ## This option can be used to reset the parser's state e.g. when always reading a
+  ## full CSV structure including header etc. Available modes are
+  ##    "none"   -- do not reset the parser (default)
+  ##    "always" -- reset the parser with each call (ignored in line-wise parsing)
+  ##                Helpful when e.g. reading whole files in each gather-cycle.
+  # csv_reset_mode = "none"
   ```
 
 ### csv_timestamp_column, csv_timestamp_format
@@ -107,10 +122,10 @@ time using the JSON document you can use the `csv_timestamp_column` and
 `csv_timestamp_format` options together to set the time to a value in the parsed
 document.
 
-The `csv_timestamp_column` option specifies the key containing the time value and
-`csv_timestamp_format` must be set to `unix`, `unix_ms`, `unix_us`, `unix_ns`,
-or a format string in using the Go "reference time" which is defined to be the
-**specific time**: `Mon Jan 2 15:04:05 MST 2006`.
+The `csv_timestamp_column` option specifies the key containing the time value
+and `csv_timestamp_format` must be set to `unix`, `unix_ms`, `unix_us`,
+`unix_ns`, or a format string in using the Go "reference time" which is defined
+to be the **specific time**: `Mon Jan 2 15:04:05 MST 2006`.
 
 Consult the Go [time][time parse] package for details and additional examples
 on how to set the time format.
@@ -159,7 +174,7 @@ Config:
   csv_metadata_separators = [":", "="]
   csv_metadata_trim_set = " #"
   csv_header_row_count = 1
-  csv_tag_columns = ["Version","File Created"]
+  csv_tag_columns = ["Version","cpu"]
   csv_timestamp_column = "time"
   csv_timestamp_format = "2006-01-02T15:04:05Z07:00"
 ```
@@ -169,14 +184,46 @@ Input:
 ```csv
 # Version=1.1
 # File Created: 2021-11-17T07:02:45+10:00
-measurement,cpu,time_user,time_system,time_idle,time
-cpu,cpu0,42,42,42,2018-09-13T13:03:28Z
+Version,measurement,cpu,time_user,time_system,time_idle,time
+1.2,cpu,cpu0,42,42,42,2018-09-13T13:03:28Z
 ```
 
 Output:
 
 ```text
-cpu,File\ Created=2021-11-17T07:02:45+10:00,Version=1.1 cpu=cpu0,time_user=42,time_system=42,time_idle=42 1536869008000000000
+cpu,cpu=cpu0,File\ Created=2021-11-17T07:02:45+10:00,Version=1.1 time_user=42,time_system=42,time_idle=42 1536869008000000000
 ```
 
+Config:
+
+```toml
+[[inputs.file]]
+  files = ["example"]
+  data_format = "csv"
+  csv_metadata_rows = 2
+  csv_metadata_separators = [":", "="]
+  csv_metadata_trim_set = " #"
+  csv_header_row_count = 1
+  csv_tag_columns = ["Version","cpu"]
+  csv_tag_overwrite = true
+  csv_timestamp_column = "time"
+  csv_timestamp_format = "2006-01-02T15:04:05Z07:00"
+```
+
+Input:
+
+```csv
+# Version=1.1
+# File Created: 2021-11-17T07:02:45+10:00
+Version,measurement,cpu,time_user,time_system,time_idle,time
+1.2,cpu,cpu0,42,42,42,2018-09-13T13:03:28Z
+```
+
+Output:
+
+```text
+cpu,cpu=cpu0,File\ Created=2021-11-17T07:02:45+10:00,Version=1.2 time_user=42,time_system=42,time_idle=42 1536869008000000000
+```
+
+[time parse]: https://pkg.go.dev/time#Parse
 [metric filtering]: /docs/CONFIGURATION.md#metric-filtering
