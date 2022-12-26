@@ -38,6 +38,15 @@ var sampleConfig string
 // Regular expression to see if a path element contains an origin
 var originPattern = regexp.MustCompile(`^([\w-_]+):`)
 
+
+// Define the warning to show if we cannot get a metric name.
+const emptyNameWarning = `Got empty metric-name for response, usually indicating
+configuration issues as the response cannot be related to any subscription.
+Please open an issue on https://github.com/influxdata/telegraf including your
+device model and the following response data:
+%+v
+This message is only printed once.`
+
 // gNMI plugin instance
 type GNMI struct {
 	Addresses     []string          `toml:"addresses"`
@@ -70,6 +79,7 @@ type GNMI struct {
 	// path/lookup_str/value
 	lookup map[string]map[string]string
 	lookupMutex sync.Mutex
+    emptyNameWarnShown bool
 
 	Log telegraf.Logger
 }
@@ -336,6 +346,12 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 			lastAliasPath = aliasPath
 		}
 
+		// Check for empty names
+		if name == "" && !c.emptyNameWarnShown {
+			c.Log.Warnf(emptyNameWarning, response.Update)
+			c.emptyNameWarnShown = true
+		}
+
 		luTags := make(map[string]string, len(tags))
 		for key, val := range tags {
 			if key != "path" {
@@ -488,7 +504,7 @@ func (c *GNMI) handlePath(gnmiPath *gnmiLib.Path, tags map[string]string, prefix
 
 		if tags != nil {
 			for key, val := range elem.Key {
-				key = strings.Replace(key, "-", "_", -1)
+                key = strings.ReplaceAll(key, "-", "_")
 
 				// Use short-form of key if possible
 				shortKey := path.Base(name) + "/" + key
