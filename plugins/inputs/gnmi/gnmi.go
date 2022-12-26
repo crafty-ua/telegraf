@@ -79,7 +79,7 @@ type GNMI struct {
 	// path/lookup_str/value
 	lookup map[string]map[string]string
 	lookupMutex sync.Mutex
-    emptyNameWarnShown bool
+	emptyNameWarnShown bool
 
 	Log telegraf.Logger
 }
@@ -178,6 +178,7 @@ func (c *GNMI) Start(acc telegraf.Accumulator) error {
 	for alias, encodingPath := range c.Aliases {
 		c.internalAliases[encodingPath] = alias
 	}
+    c.Log.Debugf("Internal alias mapping: %+v", c.internalAliases)
 
 	// Create a goroutine for each device, dial and subscribe
 	c.wg.Add(len(c.Addresses))
