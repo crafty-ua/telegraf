@@ -380,10 +380,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(address string, response *gnmiLib.S
 					continue
 				}
 			}
-
-			if err := grouper.Add(name, tags, timestamp, key, v); err != nil {
-				c.Log.Errorf("cannot add to grouper: %v", err)
-			}
+            grouper.Add(name, tags, timestamp, key, v)
 		}
 	}
 
