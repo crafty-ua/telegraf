@@ -367,7 +367,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(worker *Worker, response *gnmiLib.S
 			if equalPathNoKeys(fullPath, tagSub.fullPath) {
 				worker.storeTags(update, tagSub)
 				response.Update.Update = append(response.Update.Update[:i], response.Update.Update[i+1:]...)
-                c.Log.Debugf("DEBUG: tagStore: %+v", worker.tagStore)
+                //c.Log.Debugf("DEBUG: tagStore: %+v", worker.tagStore)
 			}
 		}
 	}
@@ -612,6 +612,9 @@ func (s *Subscription) buildFullPath(c *GNMI) error {
 
 func (w *Worker) storeTags(update *gnmiLib.Update, sub TagSubscription) {
 	updateKeys := pathKeys(update.Path)
+    fmt.Errorf("DEBUG: storeTags: update=%+v", update)
+    fmt.Errorf("DEBUG: storeTags: sub.Elements=%+v", sub.Elements)
+    fmt.Errorf("DEBUG: storeTags: updateKeys=%+v", updateKeys)
 	var foundKey bool
 	for _, requiredKey := range sub.Elements {
 		foundKey = false
@@ -621,6 +624,7 @@ func (w *Worker) storeTags(update *gnmiLib.Update, sub TagSubscription) {
 			}
 		}
 		if !foundKey {
+            fmt.Errorf("DEBUG: storeTags: key not found")
 			return
 		}
 	}
