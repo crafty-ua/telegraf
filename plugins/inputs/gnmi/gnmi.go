@@ -363,7 +363,9 @@ func (c *GNMI) handleSubscribeResponseUpdate(worker *Worker, response *gnmiLib.S
 		update := response.Update.Update[i]
 		fullPath := pathWithPrefix(response.Update.Prefix, update.Path)
 		for _, tagSub := range c.TagSubscriptions {
+            c.Log.Debugf("DEBUG: equalPathNoKeys(%+v, %+v)\n", fullPath, tagSub.fullPath)
 			if equalPathNoKeys(fullPath, tagSub.fullPath) {
+				c.Log.Debugf("DEBUG: storeTags(%+v, %+v)", update, tagSub)
 				worker.storeTags(update, tagSub)
 				response.Update.Update = append(response.Update.Update[:i], response.Update.Update[i+1:]...)
 			}
@@ -556,7 +558,6 @@ func convertTagOnlySubscription(s Subscription) TagSubscription {
 
 // equalPathNoKeys checks if two gNMI paths are equal, without keys
 func equalPathNoKeys(a *gnmiLib.Path, b *gnmiLib.Path) bool {
-    c.Log.Debugf("DEBUG: equalPathNoKeys(%+v, %+v)\n", a, b)
 	if len(a.Elem) != len(b.Elem) {
 		return false
 	}
@@ -625,7 +626,6 @@ func (w *Worker) storeTags(update *gnmiLib.Update, sub TagSubscription) {
 	}
 	// All required keys present for this TagSubscription
 	w.tagStore.insert(updateKeys, sub.Name, update.Val)
-    c.Log.Debugf("DEBUG: storeTags(%+v, %+v)", update, sub)
 }
 
 func (node *tagNode) insert(keys []*gnmiLib.PathElem, name string, value *gnmiLib.TypedValue) {
