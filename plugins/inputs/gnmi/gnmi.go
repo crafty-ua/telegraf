@@ -363,7 +363,7 @@ func (c *GNMI) handleSubscribeResponseUpdate(worker *Worker, response *gnmiLib.S
 		update := response.Update.Update[i]
 		fullPath := pathWithPrefix(response.Update.Prefix, update.Path)
 		for _, tagSub := range c.TagSubscriptions {
-            c.Log.Debugf("DEBUG: equalPathNoKeys(%+v, %+v)\n", fullPath, tagSub.fullPath)
+            //c.Log.Debugf("DEBUG: equalPathNoKeys(%+v, %+v)\n", fullPath, tagSub.fullPath)
 			if equalPathNoKeys(fullPath, tagSub.fullPath) {
 				c.Log.Debugf("DEBUG: storeTags(%+v, %+v)", update, tagSub)
 				worker.storeTags(update, tagSub)
