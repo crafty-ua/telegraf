@@ -76,7 +76,6 @@ type GNMI struct {
 	acc                telegraf.Accumulator
 	cancel             context.CancelFunc
 	wg                 sync.WaitGroup
-	legacyTags         bool
 	emptyNameWarnShown bool
 
 	Log telegraf.Logger
@@ -141,15 +140,6 @@ func (c *GNMI) Start(acc telegraf.Accumulator) error {
 
 	for i := len(c.Subscriptions) - 1; i >= 0; i-- {
 		subscription := c.Subscriptions[i]
-		// Support legacy TagOnly subscriptions
-		if subscription.TagOnly {
-			tagSub := convertTagOnlySubscription(subscription)
-			c.TagSubscriptions = append(c.TagSubscriptions, tagSub)
-			// Remove from the original subscriptions list
-			c.Subscriptions = append(c.Subscriptions[:i], c.Subscriptions[i+1:]...)
-			c.legacyTags = true
-			continue
-		}
 		if err = subscription.buildFullPath(c); err != nil {
 			return err
 		}
@@ -157,9 +147,6 @@ func (c *GNMI) Start(acc telegraf.Accumulator) error {
 	for idx := range c.TagSubscriptions {
 		if err = c.TagSubscriptions[idx].buildFullPath(c); err != nil {
 			return err
-		}
-		if c.TagSubscriptions[idx].TagOnly != c.TagSubscriptions[0].TagOnly {
-			return fmt.Errorf("do not mix legacy tag_only subscriptions and tag subscriptions")
 		}
 		if len(c.TagSubscriptions[idx].Elements) == 0 {
 			return fmt.Errorf("tag_subscription must have at least one element")
@@ -548,11 +535,6 @@ func init() {
 	inputs.Add("gnmi", New)
 	// Backwards compatible alias:
 	inputs.Add("cisco_telemetry_gnmi", New)
-}
-
-func convertTagOnlySubscription(s Subscription) TagSubscription {
-	t := TagSubscription{Subscription: s, Elements: []string{"interface"}}
-	return t
 }
 
 // equalPathNoKeys checks if two gNMI paths are equal, without keys
