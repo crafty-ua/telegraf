@@ -91,7 +91,7 @@ type tagNode struct {
 	elem     *gnmiLib.PathElem
 	//tagName  string
 	//value    *gnmiLib.TypedValue
-    tags     map[string][]*gnmiLib.TypedValue
+    tags     map[string][]gnmiLib.TypedValue
 	tagStore map[string][]*tagNode
 }
 
