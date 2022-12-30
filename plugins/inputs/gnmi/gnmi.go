@@ -612,9 +612,9 @@ func (s *Subscription) buildFullPath(c *GNMI) error {
 
 func (w *Worker) storeTags(update *gnmiLib.Update, sub TagSubscription) {
 	updateKeys := pathKeys(update.Path)
-    fmt.Errorf("DEBUG: storeTags: update=%+v", update)
-    fmt.Errorf("DEBUG: storeTags: sub.Elements=%+v", sub.Elements)
-    fmt.Errorf("DEBUG: storeTags: updateKeys=%+v", updateKeys)
+    fmt.Printf("DEBUG: storeTags: update=%+v\n", update)
+    fmt.Printf("DEBUG: storeTags: sub.Elements=%+v\n", sub.Elements)
+    fmt.Printf("DEBUG: storeTags: updateKeys=%+v\n", updateKeys)
 	var foundKey bool
 	for _, requiredKey := range sub.Elements {
 		foundKey = false
@@ -624,7 +624,7 @@ func (w *Worker) storeTags(update *gnmiLib.Update, sub TagSubscription) {
 			}
 		}
 		if !foundKey {
-            fmt.Errorf("DEBUG: storeTags: key not found")
+            fmt.Printf("DEBUG: storeTags: key not found\n")
 			return
 		}
 	}
