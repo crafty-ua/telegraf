@@ -89,8 +89,9 @@ type Worker struct {
 
 type tagNode struct {
 	elem     *gnmiLib.PathElem
-	tagName  string
-	value    *gnmiLib.TypedValue
+	//tagName  string
+	//value    *gnmiLib.TypedValue
+    tags     map[string][]*gnmiLib.TypedValue
 	tagStore map[string][]*tagNode
 }
 
@@ -632,8 +633,9 @@ func (w *Worker) storeTags(fullPath *gnmiLib.Path, update *gnmiLib.Update, sub T
 
 func (node *tagNode) insert(keys []*gnmiLib.PathElem, name string, value *gnmiLib.TypedValue) {
 	if len(keys) == 0 {
-		node.value = value
-		node.tagName = name
+        node.tags[name] = value
+		//node.value = value
+		//node.tagName = name
 		return
 	}
 	var found *tagNode
@@ -659,9 +661,11 @@ func (node *tagNode) insert(keys []*gnmiLib.PathElem, name string, value *gnmiLi
 }
 
 func (node *tagNode) retrieve(keys []*gnmiLib.PathElem, tagResults *tagResults) {
-	if node.value != nil {
-		tagResults.names = append(tagResults.names, node.tagName)
-		tagResults.values = append(tagResults.values, node.value)
+	if node.tags != nil {
+        for tagName, tagValue := range node.tags {
+		    tagResults.names = append(tagResults.names, tagName)
+		    tagResults.values = append(tagResults.values, tagValue)
+       }
 	}
 	for _, key := range keys {
 		if elems, ok := node.tagStore[key.Name]; ok {
