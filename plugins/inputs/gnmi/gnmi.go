@@ -91,7 +91,7 @@ type tagNode struct {
 	elem     *gnmiLib.PathElem
 	//tagName  string
 	//value    *gnmiLib.TypedValue
-    tags     map[string][]gnmiLib.TypedValue
+    tags     map[string][]*gnmiLib.TypedValue
 	tagStore map[string][]*tagNode
 }
 
@@ -644,6 +644,9 @@ func (node *tagNode) insert(keys []*gnmiLib.PathElem, name string, value *gnmiLi
 	if node.tagStore == nil {
 		node.tagStore = make(map[string][]*tagNode)
 	}
+    if node.tags == nil {
+		node.tags = make(map[string][]*gnmiLib.TypedValue)
+    }
 	if _, ok := node.tagStore[keyName]; !ok {
 		node.tagStore[keyName] = make([]*tagNode, 0)
 	}
