@@ -363,11 +363,9 @@ func (c *GNMI) handleSubscribeResponseUpdate(worker *Worker, response *gnmiLib.S
 		update := response.Update.Update[i]
 		fullPath := pathWithPrefix(response.Update.Prefix, update.Path)
 		for _, tagSub := range c.TagSubscriptions {
-            //c.Log.Debugf("DEBUG: equalPathNoKeys(%+v, %+v)\n", fullPath, tagSub.fullPath)
 			if equalPathNoKeys(fullPath, tagSub.fullPath) {
 				worker.storeTags(fullPath, update, tagSub)
 				response.Update.Update = append(response.Update.Update[:i], response.Update.Update[i+1:]...)
-                //c.Log.Debugf("DEBUG: tagStore: %+v", worker.tagStore)
 			}
 		}
 	}
@@ -612,10 +610,6 @@ func (s *Subscription) buildFullPath(c *GNMI) error {
 
 func (w *Worker) storeTags(fullPath *gnmiLib.Path, update *gnmiLib.Update, sub TagSubscription) {
 	updateKeys := pathKeys(fullPath)
-    fmt.Printf("DEBUG: storeTags: update=%+v\n", update)
-    fmt.Printf("DEBUG: storeTags: fullPath=%+v\n", fullPath)
-    fmt.Printf("DEBUG: storeTags: sub.Elements=%+v\n", sub.Elements)
-    fmt.Printf("DEBUG: storeTags: updateKeys=%+v\n", updateKeys)
 	var foundKey bool
 	for _, requiredKey := range sub.Elements {
 		foundKey = false
@@ -625,11 +619,13 @@ func (w *Worker) storeTags(fullPath *gnmiLib.Path, update *gnmiLib.Update, sub T
 			}
 		}
 		if !foundKey {
-            fmt.Printf("DEBUG: storeTags: key not found\n")
 			return
 		}
 	}
 	// All required keys present for this TagSubscription
+    fmt.Printf("DEBUG: storeTags: updateKeys=%+v\n", updateKeys)
+    fmt.Printf("DEBUG: storeTags: sub.Name=%+v\n", sub.Name)
+    fmt.Printf("DEBUG: storeTags: update.Val=%+v\n", update.Val)
 	w.tagStore.insert(updateKeys, sub.Name, update.Val)
 }
 
