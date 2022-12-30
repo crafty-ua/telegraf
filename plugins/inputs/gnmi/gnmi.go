@@ -632,9 +632,9 @@ func (w *Worker) storeTags(fullPath *gnmiLib.Path, update *gnmiLib.Update, sub T
 }
 
 func (node *tagNode) insert(keys []*gnmiLib.PathElem, name string, value *gnmiLib.TypedValue) {
-	//if node.tags == nil {
-	//	node.tags = make(map[string]*gnmiLib.TypedValue)
-	//}
+	if node.tags == nil {
+		node.tags = make(map[string]*gnmiLib.TypedValue)
+	}
 	if len(keys) == 0 {
         node.tags[name] = value
 		//node.value = value
